@@ -68,6 +68,8 @@ def read_product_serial():
             continue
         product_distance = dist
         # print("product sensor distance:", product_distance)
+        if product_distance > MAX_DISTANCE:
+            continue
 
         if prev_product_distance is None:
             prev_product_distance = product_distance
@@ -87,7 +89,7 @@ def read_product_serial():
 
 def read_aisle_serial():
     global aisle_distance, last_buy_time, average_purchase_time, average_stop_time
-    block_criteria = 100
+    block_criteria = 1000 
     prev_aisle_distance = None
     min_error = 40
     block = False

@@ -4,9 +4,10 @@ from serial import Serial
 import threading
 from flask_cors import CORS
 import time
+import random
 
-MAX_HISTORY_LEN = 10
-MAX_DISTANCE = 300
+MAX_DISTANCE = 260
+CAN_WIDTH = 40
 
 class CountAverage:
     def __init__(self):
@@ -32,6 +33,7 @@ last_buy_time = time.time()
 sold_num = 0
 average_stop_time = CountAverage()
 average_purchase_time = CountAverage()
+purchase_history = {f'{hour:02d}:{minute:02d}':random.randint(0, 3) for hour in range(0, 24) for minute in range(0, 60)}
 
 app = Flask(__name__)
 CORS(app)
@@ -57,7 +59,7 @@ def read_distance(serial):
     return distance
 
 def read_product_serial():
-    global product_distance, product_num, last_buy_time, sold_num
+    global product_distance, product_num, last_buy_time, sold_num, purchase_history
     product_num = 3
     min_error = 40
     prev_product_distance = None
@@ -67,7 +69,7 @@ def read_product_serial():
         if dist is None:
             continue
         product_distance = dist
-        # print("product sensor distance:", product_distance)
+        # print("product ssensor distance:", product_distance)
         if product_distance > MAX_DISTANCE:
             continue
 
@@ -78,9 +80,10 @@ def read_product_serial():
         buy = product_distance > prev_product_distance + min_error
         refill = product_distance < prev_product_distance - min_error
         if buy:
-            sold_num += 1
+            sold_num += (product_distance - prev_product_distance) // CAN_WIDTH
             prev_product_distance = product_distance
             last_buy_time = time.time()
+            purchase_history[time.strftime('%H:%M')] += 1
             print('buy:', sold_num)
         elif refill:
             prev_product_distance = product_distance
@@ -139,6 +142,14 @@ def get_data():
         "average_purchase_time": average_purchase_time.get_ave(),
         "accum_stop_time": average_stop_time.get_accum(),
         "sold_num": sold_num,
+    }
+    return jsonify(response)
+
+@app.route('/get_history', methods=['GET'])
+def get_history():
+    global purchase_history
+    response = {
+        "purchase_history": purchase_history
     }
     return jsonify(response)
 
